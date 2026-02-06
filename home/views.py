@@ -28,7 +28,7 @@ def index(request):
 @api_view(['GET','POST','PUT','PATCH','DELETE'])
 def person(request):
     if request.method=='GET':
-        objPerson=Person.objects.all()
+        objPerson=Person.objects.filter(team__isnull=False)
         serializer=PersonSerializer(objPerson,many=True)
         return Response(serializer.data)
     elif request.method=='POST':
@@ -61,5 +61,12 @@ def person(request):
         return Response({'messege':'person delete'})
 
 
+
+#to study -- to get persons of particular team
+@api_view(['GET'])
+def persons_by_team(request, team_id):
+    persons = Person.objects.filter(team_id=team_id)
+    serializer = PersonSerializer(persons, many=True)
+    return Response(serializer.data)
 
      
