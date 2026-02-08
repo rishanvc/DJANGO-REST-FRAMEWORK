@@ -8,7 +8,10 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
-
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.pagination import PageNumberPagination
 
 
 @api_view(['GET','POST','PUT','DELETE'])
@@ -30,8 +33,15 @@ def index(request):
         return Response('This is DELETE method')
     
 
-#function based api
+#function based api      i also did code for permission
+
+
 @api_view(['GET','POST','PUT','PATCH','DELETE'])
+
+
+@authentication_classes([TokenAuthentication]) #-----------------------------
+@permission_classes([IsAuthenticated])          #---------------------------
+
 def person(request):
     if request.method=='GET':
         objPerson=Person.objects.filter(team__isnull=False)
@@ -78,8 +88,13 @@ def persons_by_team(request, team_id):
      
 
 
-#class based api(APIView)
+#class based api(APIView)      ----- here permission also done here
+
 class ClassPerson(APIView):
+
+    permission_classes=[IsAuthenticated]                 #------------
+    authentication_classes=[TokenAuthentication]         #------------
+      
     def get(self,request):
         objPerson=Person.objects.filter(team__isnull=False)
         serializer=PersonSerializer(objPerson,many=True)
@@ -100,20 +115,52 @@ class ClassPerson(APIView):
 
 #ModelViewSet
 
+# class PersonViewSets(viewsets.ModelViewSet):
+#     serializer_class=PersonSerializer
+#     queryset=Person.objects.all()
+
+#     #---------just filtering----------
+#     def list(self,request):
+#         search=request.GET.get("search")
+#         queryset=self.queryset
+
+#         if search:
+#             queryset=queryset.filter(name__startswith=search)
+#         serializer=PersonSerializer(queryset,many=True)
+#         return Response({'status':200,'data':serializer.data})
+    
+
+
+#custom class for pagination
+
+class CustomPagination(PageNumberPagination):
+    page_size=3
+    page_query_param='page'
+
+
+# PAGINATION   ModelViewSet
 class PersonViewSets(viewsets.ModelViewSet):
+    permission_classes=[AllowAny]
     serializer_class=PersonSerializer
     queryset=Person.objects.all()
+    pagination_class=CustomPagination
 
-    #---------just filtering----------
     def list(self,request):
         search=request.GET.get("search")
         queryset=self.queryset
 
         if search:
             queryset=queryset.filter(name__startswith=search)
-        serializer=PersonSerializer(queryset,many=True)
-        return Response({'status':200,'data':serializer.data})
-    
+
+        #paginate queryset
+        paginated_queryset=self.paginate_queryset(queryset)
+
+        #he paginated querysetserialize t
+        serializer=PersonSerializer(paginated_queryset,many=True)
+
+        #return the paginated ewsponse
+        return self.get_paginated_response(serializer.data)
+
 
 
 #authencation
@@ -130,8 +177,12 @@ class RegisterAPI(APIView):
         return Response({'message':'user created'},status=status.HTTP_201_CREATED)
     
 
+#loginapi            here permission also uncluded
 
 class LoginAPI(APIView):
+
+    permission_classes=[AllowAny]
+
     def post(self,request):
         _data=request.data
         serializer=LoginSerializer(data=_data)
